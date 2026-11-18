@@ -61,9 +61,10 @@ The server codebase features a seamless fallback mechanic leveraging Node `proce
 1. Publish this repo onto **GitHub**.
 2. Go to [Render Dashboard](https://dashboard.render.com).
 3. Connect Repo -> Create a **Web Service**.
+   Leave **Root Directory** empty so Render runs commands from the repository root.
 4. Configure Build Command:
-   `npm run render-build` 
-   *(This cleanly installs API + UI node_modules then generates `react-scripts build`)*
+   `npm install && npm run build`
+   *(This installs API + UI dependencies and generates `frontend/build`.)*
 5. Configure Start Command:
    `npm start`
 6. Open **Advanced > Environment Variables** and map your `.env` fields heavily defining `NODE_ENV = production`.
