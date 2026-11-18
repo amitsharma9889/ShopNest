@@ -36,7 +36,7 @@ const Profile = () => {
       }
     };
     fetchMyOrders();
-  }, [user, navigate]);
+  }, [user, navigate, logout]); // Added logout to dependency array
 
   const handleLogout = () => {
     logout();
