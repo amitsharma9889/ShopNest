@@ -30,6 +30,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use((req, res) => {
     res.sendFile(path.resolve(__dirname, '../frontend/build/index.html'));
   });
+}
 } else {
   app.get('/', (req, res) => {
     res.send('ShopNest API is running in Development mode...');
