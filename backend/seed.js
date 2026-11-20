@@ -7,22 +7,20 @@ const connectDB = require('./config/db');
 
 dotenv.config();
 
-connectDB();
-
 const importData = async () => {
   try {
-    await User.deleteMany();
-    await Product.deleteMany();
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash('password123', salt);
-    
-    const adminUser = await User.create({
-      name: 'Admin User',
-      email: 'admin@shopnest.com',
-      password: hashedPassword,
-      role: 'admin'
-    });
+    await connectDB();
+    const existingAdmin = await User.findOne({ email: 'admin@shopnest.com' });
+    if (!existingAdmin) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('password123', salt);
+      await User.create({
+        name: 'Admin User',
+        email: 'admin@shopnest.com',
+        password: hashedPassword,
+        role: 'admin'
+      });
+    }
 
     const products = [
       {
@@ -64,15 +62,83 @@ const importData = async () => {
         imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
         ratings: 4.5,
         numReviews: 89
+      },
+      {
+        name: 'Bluetooth Portable Speaker',
+        description: 'Rich, portable sound with a long-lasting battery for music on the go.',
+        price: 2499.00,
+        category: 'Electronics',
+        stock: 25,
+        imageUrl: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        ratings: 4.6,
+        numReviews: 18
+      },
+      {
+        name: 'Everyday Leather Backpack',
+        description: 'A practical, durable backpack with room for daily essentials.',
+        price: 3299.00,
+        category: 'Accessories',
+        stock: 20,
+        imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        ratings: 4.4,
+        numReviews: 16
+      },
+      {
+        name: 'Minimal Desk Lamp',
+        description: 'A clean, adjustable lamp to brighten your desk or bedside table.',
+        price: 1599.00,
+        category: 'Home',
+        stock: 32,
+        imageUrl: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        ratings: 4.3,
+        numReviews: 11
+      },
+      {
+        name: 'Insulated Stainless Steel Bottle',
+        description: 'Reusable double-wall bottle that keeps drinks at the right temperature.',
+        price: 799.00,
+        category: 'Accessories',
+        stock: 40,
+        imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        ratings: 4.7,
+        numReviews: 27
+      },
+      {
+        name: 'Classic Analog Wristwatch',
+        description: 'A versatile everyday watch with a simple, timeless design.',
+        price: 2799.00,
+        category: 'Accessories',
+        stock: 18,
+        imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        ratings: 4.5,
+        numReviews: 21
+      },
+      {
+        name: 'Ceramic Coffee Mug Set',
+        description: 'A set of two sturdy ceramic mugs for your morning coffee or tea.',
+        price: 649.00,
+        category: 'Home',
+        stock: 35,
+        imageUrl: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        ratings: 4.6,
+        numReviews: 14
       }
     ];
 
-    await Product.insertMany(products);
+    for (const product of products) {
+      await Product.updateOne(
+        { name: product.name },
+        { $setOnInsert: product },
+        { upsert: true }
+      );
+    }
     
-    console.log('✅ Data Imported Successfully!');
+    console.log('Demo products are ready. Existing users and products were preserved.');
+    await mongoose.connection.close();
     process.exit();
   } catch (error) {
     console.error(`❌ Error with data import: ${error.message}`);
+    await mongoose.connection.close();
     process.exit(1);
   }
 };

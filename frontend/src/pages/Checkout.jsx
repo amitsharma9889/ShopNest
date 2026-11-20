@@ -13,45 +13,59 @@ const Checkout = () => {
   const [address, setAddress] = useState({
     fullName: '', street: '', city: '', postalCode: '', country: ''
   });
+  const [paymentError, setPaymentError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const totalPrice = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
 
   const handlePayment = async () => {
+    setPaymentError('');
+    setIsProcessing(true);
+
     try {
+      if (!window.Razorpay) {
+        throw new Error('Razorpay Checkout failed to load. Please refresh and try again.');
+      }
+
       const orderRes = await fetch('/api/payment/order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: totalPrice })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ amount: Math.round(totalPrice * 100) })
       });
       const orderData = await orderRes.json();
 
       if (!orderRes.ok) {
-        // Razorpay unconfigured exception handler
-        const fallback = window.confirm("Razorpay keys unconfigured on backend. Use Student Bypass Mode to place test order?");
-        if (fallback) {
-          return bypassPayment();
-        } else {
-          return alert("Payment failed to initialize");
-        }
+        throw new Error(orderData.message || 'Unable to initialize payment.');
       }
 
       const options = {
-        key: 'rzp_test_dummykey123', // Student dummy fallback
+        key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'ShopNest',
         description: 'Test Transaction',
-        order_id: orderData.id,
-        handler: async function (response) {
-          const verifyRes = await fetch('/api/payment/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(response)
-          });
-          if (verifyRes.ok) {
+        order_id: orderData.order_id,
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch('/api/payment/verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${user.token}`
+              },
+              body: JSON.stringify(response)
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) {
+              throw new Error(verifyData.message || 'Payment verification failed.');
+            }
+
             const saveOrderRes = await fetch('/api/orders', {
               method: 'POST',
-              headers: { 
+              headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${user.token}`
               },
@@ -62,15 +76,23 @@ const Checkout = () => {
                 paymentId: response.razorpay_payment_id
               })
             });
+            const savedOrder = await saveOrderRes.json();
 
-            if (saveOrderRes.ok) {
-              dispatch(clearCart());
-              navigate('/ordersuccess');
-            } else {
-              alert('Order saving failed');
+            if (!saveOrderRes.ok) {
+              throw new Error(savedOrder.message || 'Payment succeeded, but saving the order failed.');
             }
-          } else {
-            alert('Payment verification failed');
+
+            dispatch(clearCart());
+            navigate('/ordersuccess');
+          } catch (error) {
+            setPaymentError(error.message || 'Unable to complete the order.');
+            setIsProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setPaymentError((currentError) => currentError || 'Payment was cancelled.');
+            setIsProcessing(false);
           }
         },
         prefill: {
@@ -82,38 +104,23 @@ const Checkout = () => {
           color: '#f97316'
         }
       };
-      
+
       const rzp1 = new window.Razorpay(options);
+      rzp1.on('payment.failed', (event) => {
+        setPaymentError(event.error?.description || 'Payment failed. Please try again.');
+        setIsProcessing(false);
+      });
       rzp1.open();
     } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const bypassPayment = async () => {
-    const saveOrderRes = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${user.token}`
-      },
-      body: JSON.stringify({
-        items: cartItems,
-        totalAmount: totalPrice,
-        address,
-        paymentId: 'bypass_txn_' + Date.now()
-      })
-    });
-    if (saveOrderRes.ok) {
-      dispatch(clearCart());
-      navigate('/ordersuccess');
+      setPaymentError(error.message || 'Unable to initialize payment.');
+      setIsProcessing(false);
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!user) {
-      alert("Please login first");
+      setPaymentError('Please log in before continuing to payment.');
       navigate('/login');
       return;
     }
@@ -131,9 +138,12 @@ const Checkout = () => {
           <input type="text" placeholder="City" required value={address.city} onChange={(e) => setAddress({...address, city: e.target.value})} />
           <input type="text" placeholder="Postal Code" required value={address.postalCode} onChange={(e) => setAddress({...address, postalCode: e.target.value})} />
           <input type="text" placeholder="Country" required value={address.country} onChange={(e) => setAddress({...address, country: e.target.value})} />
+          {paymentError && <p role="alert" style={{ color: '#ef4444' }}>{paymentError}</p>}
           <div className="checkout-summary">
             <h4>Total to Pay: ₹{totalPrice.toFixed(2)}</h4>
-            <button type="submit" className="btn">Pay Now</button>
+            <button type="submit" className="btn" disabled={isProcessing || cartItems.length === 0}>
+              {isProcessing ? 'Processing...' : 'Pay Now'}
+            </button>
           </div>
         </form>
       </div>

@@ -12,7 +12,7 @@
 - **Backend:** Node.js, Express.js architecture mapped with middleware-based routing.
 - **Database:** MongoDB (via Mongoose schemas).
 - **Features:** Unified Admin Dashboard, Direct Cloudinary Content Maps, Personal User Profiles matching mapped Order Histories.
-- **Payments:** Razorpay fully implemented (utilize your test metrics or placeholder).
+- **Payments:** Razorpay Standard Checkout with server-side order creation and signature verification.
 - **Cloud Storage:** Cloudinary integration for Product image uploading securely via Multer.
 
 ---
@@ -33,6 +33,7 @@ JWT_SECRET=super_secret_key
 RAZORPAY_KEY_ID=your_key_id
 RAZORPAY_KEY_SECRET=your_key_secret
 ```
+Use test credentials from the Razorpay Dashboard while developing. Keep the key secret only in `backend/.env`; never commit real credentials. Checkout requires a logged-in user.
 
 From the **root folder** `shopnest/`, trigger a full install across environments:
 ```bash
@@ -40,10 +41,11 @@ npm run build
 ```
 
 ### 2️⃣ Populate the Database (Seeding)
-Test the platform rapidly featuring beautiful dummy products (Unsplash) and automatic `Admin` role provisioning:
+Add the demo products (Unsplash) and create the `Admin` account if it does not already exist:
 ```bash
 npm run seed
 ```
+Seeding is safe to rerun: existing users and products are preserved.
 > **Seed Admin Access:** Email: `admin@shopnest.com` | Password: `password123`
 
 ### 3️⃣ Run Servers Start
